@@ -16,11 +16,26 @@ app.use(cors());
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/cosmonet";
 
-// NEW CODE (Replace with this)
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected) return;
+  try {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      console.warn('⚠️ MONGODB_URI is not set! Using localhost fallback (This will fail on Vercel).');
+    }
+    await mongoose.connect(MONGODB_URI);
+    isConnected = true;
+    console.log("✅ MongoDB Connected");
+  } catch (err) {
+    console.error("❌ MongoDB Error:", err);
+    throw err;
+  }
+};
+
+if (require.main === module) {
+  connectDB();
+}
   
 // ========== MONGODB SCHEMAS ==========
 const userSchema = new mongoose.Schema({
@@ -459,4 +474,4 @@ if (require.main === module) {
 }
 
 // Export for serverless environments (Vercel)
-module.exports = { app, startApolloServer };
+module.exports = { app, startApolloServer, connectDB };
