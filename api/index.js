@@ -1,4 +1,4 @@
-const { app, startApolloServer, connectDB } = require('../server.cjs');
+const { app, startApolloServer, connectDB } = require('./server.js');
 
 module.exports = async (req, res) => {
   // Ensure the database is connected
