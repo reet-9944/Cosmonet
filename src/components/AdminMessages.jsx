@@ -12,7 +12,8 @@ const AdminMessages = ({ onBack }) => {
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/contacts');
+      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api/contacts' : 'http://localhost:4000/api/contacts');
+      const response = await fetch(apiUrl);
       const data = await response.json();
       if (data.success) {
         setMessages(data.contacts);
@@ -26,7 +27,8 @@ const AdminMessages = ({ onBack }) => {
 
   const markAsRead = async (id) => {
     try {
-      await fetch(`http://localhost:4000/api/contact/${id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? `/api/contact/${id}` : `http://localhost:4000/api/contact/${id}`);
+      await fetch(apiUrl, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'read' })
