@@ -17,11 +17,26 @@ app.use(cors());
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/cosmonet";
 
-// NEW CODE (Replace with this)
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Error:", err));
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected) return;
+  try {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      console.warn('⚠️ MONGODB_URI is not set! Using localhost fallback (This will fail on Vercel).');
+    }
+    await mongoose.connect(MONGODB_URI);
+    isConnected = true;
+    console.log("✅ MongoDB Connected");
+  } catch (err) {
+    console.error("❌ MongoDB Error:", err);
+    throw err;
+  }
+};
+
+if (require.main === module) {
+  connectDB();
+}
   
 // ========== MONGODB SCHEMAS ==========
 const userSchema = new mongoose.Schema({
@@ -368,96 +383,104 @@ const resolvers = {
 };
 
 // ========== APOLLO SERVER SETUP ==========
-async function startServer() {
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    context: () => ({}),
-    formatError: (error) => {
-      console.error('❌ GraphQL Error:', error.message);
-      console.error('📍 Path:', error.path);
-      console.error('🔍 Original Error:', error.originalError);
-      return error;
-    },
-  });
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: () => ({}),
+  formatError: (error) => {
+    console.error('❌ GraphQL Error:', error.message);
+    console.error('📍 Path:', error.path);
+    console.error('🔍 Original Error:', error.originalError);
+    return error;
+  },
+});
 
-  await server.start();
-  server.applyMiddleware({ app });
+let serverStarted = false;
 
-  // Add express.json() AFTER Apollo middleware
-  app.use(express.json());
+async function startApolloServer() {
+  if (!serverStarted) {
+    await server.start();
+    server.applyMiddleware({ app });
+    serverStarted = true;
+  }
+}
 
-  // Contact form endpoint (NO EMAIL REQUIRED)
-  app.post('/api/contact', async (req, res) => {
-    try {
-      const { name, email, subject, message } = req.body;
-      console.log('📩 Received contact form submission:', { name, email, subject });
+// Add express.json() AFTER Apollo middleware
+app.use(express.json());
 
-      // Save to MongoDB
-      const contact = new Contact({
-        name,
-        email,
-        subject,
-        message
-      });
-      await contact.save();
-      console.log('✅ Message saved to MongoDB with ID:', contact._id);
+// Contact form endpoint (NO EMAIL REQUIRED)
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    console.log('📩 Received contact form submission:', { name, email, subject });
 
-      res.json({ 
-        success: true, 
-        message: 'Message received! We will contact you soon.' 
-      });
-    } catch (error) {
-      console.error('❌ Contact form error:', error.message);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to save message: ' + error.message 
-      });
-    }
-  });
+    // Save to MongoDB
+    const contact = new Contact({
+      name,
+      email,
+      subject,
+      message
+    });
+    await contact.save();
+    console.log('✅ Message saved to MongoDB with ID:', contact._id);
 
-  // Get all contact messages (for admin to view)
-  app.get('/api/contacts', async (req, res) => {
-    try {
-      const contacts = await Contact.find().sort({ createdAt: -1 });
-      res.json({ success: true, contacts });
-    } catch (error) {
-      console.error('❌ Error fetching contacts:', error);
-      res.status(500).json({ success: false, message: error.message });
-    }
-  });
+    res.json({ 
+      success: true, 
+      message: 'Message received! We will contact you soon.' 
+    });
+  } catch (error) {
+    console.error('❌ Contact form error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to save message: ' + error.message 
+    });
+  }
+});
 
-  // Mark message as read
-  app.patch('/api/contact/:id', async (req, res) => {
-    try {
-      const { status } = req.body;
-      const contact = await Contact.findByIdAndUpdate(
-        req.params.id,
-        { status },
-        { new: true }
-      );
-      res.json({ success: true, contact });
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  });
+// Get all contact messages (for admin to view)
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const contacts = await Contact.find().sort({ createdAt: -1 });
+    res.json({ success: true, contacts });
+  } catch (error) {
+    console.error('❌ Error fetching contacts:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-  // Serve static files from the React app
-  app.use(express.static(path.join(__dirname, "dist")));
-  
-  // The "catchall" handler: for any request that doesn't
-  // match one above, send back React's index.html file.
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "index.html"));
-  });
-
-  const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-    console.log(
-      `📊 GraphQL Playground at http://localhost:${PORT}${server.graphqlPath}`
+// Mark message as read
+app.patch('/api/contact/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
     );
+    res.json({ success: true, contact });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Serve static files from the React app (when running locally or on Render)
+app.use(express.static(path.join(__dirname, "../dist")));
+
+// The "catchall" handler: for any request that doesn't match an API route
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist", "index.html"));
+});
+
+// If run directly (local development or Render)
+if (require.main === module) {
+  startApolloServer().then(() => {
+    const PORT = process.env.PORT || 4000;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+      console.log(`📊 GraphQL Playground at http://localhost:${PORT}${server.graphqlPath}`);
+    });
   });
 }
 
-startServer();
+// Export for serverless environments (Vercel)
+module.exports = { app, startApolloServer, connectDB };

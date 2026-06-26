@@ -16,8 +16,9 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 });
 
 // HTTP link
+const graphqlUri = import.meta.env.VITE_GRAPHQL_URI || (import.meta.env.PROD ? '/graphql' : 'http://localhost:4000/graphql');
 const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/graphql',
+  uri: graphqlUri,
 });
 
 // Combine links

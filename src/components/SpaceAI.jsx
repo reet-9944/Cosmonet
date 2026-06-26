@@ -18,35 +18,35 @@ const SpaceAI = () => {
 
   // Real AI using multiple APIs with fallback
   const getAIResponse = async (userInput) => {
-    // Try OpenRouter API (free tier available)
+    // Try Cohere Coral (Command R) API
     try {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "HTTP-Referer": window.location.href,
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3.2-3b-instruct:free",
-          messages: [
-            {
-              role: "system",
-              content: "You are a knowledgeable and friendly space expert AI assistant. Provide accurate, engaging information about space, astronomy, planets, stars, galaxies, and the universe. Keep responses concise (2-3 sentences) and educational."
-            },
-            {
-              role: "user",
-              content: userInput
-            }
-          ]
-        })
-      });
+      const apiKey = import.meta.env.VITE_COHERE_API_KEY;
+      if (apiKey) {
+        const response = await fetch("https://api.cohere.ai/v1/chat", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            message: userInput,
+            model: "command-r",
+            preamble: "You are a knowledgeable and friendly space expert AI assistant. Provide accurate, engaging information about space, astronomy, planets, stars, galaxies, and the universe. Keep responses concise (2-3 sentences) and educational."
+          })
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data.choices[0]?.message?.content || fallbackResponse(userInput);
+        if (response.ok) {
+          const data = await response.json();
+          return data.text || fallbackResponse(userInput);
+        } else {
+          console.error("Cohere API Error:", await response.text());
+        }
+      } else {
+        console.warn("No VITE_COHERE_API_KEY found, using local fallback");
       }
     } catch (error) {
-      console.log("OpenRouter failed, using fallback");
+      console.log("Cohere Coral failed, using fallback");
     }
 
     // Fallback to local knowledge base
