@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const { ApolloServer, gql } = require("apollo-server-express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -439,6 +440,15 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
+  });
+
+  // Serve static files from the React app
+  app.use(express.static(path.join(__dirname, "dist")));
+  
+  // The "catchall" handler: for any request that doesn't
+  // match one above, send back React's index.html file.
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
 
   const PORT = process.env.PORT || 4000;

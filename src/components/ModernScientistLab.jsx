@@ -224,7 +224,7 @@ const ModernScientistLab = () => {
       id: 2,
       title: 'Quantum Entanglement',
       status: 'Research',
-      image: 'https://www.snexplores.org/wp-content/uploads/2022/10/100422_jr_nobel-physics_feat-1030x580.jpg',
+      image: 'https://bigthink.com/wp-content/uploads/2022/10/AdobeStock_537881222.jpeg',
       description: 'Studying quantum particles that remain connected across vast distances',
       progress: 65,
       applications: ['Quantum computing', 'Secure communication', 'Teleportation', 'Quantum sensors'],
